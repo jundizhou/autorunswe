@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "status",
+    "instance_id",
+    "pass_mode",
+    "used_skill_path",
+    "read_basic_only",
+    "read_full_json",
+    "patch_path",
+    "summary"
+  ],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["patched", "failed"]
+    },
+    "instance_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "pass_mode": {
+      "type": "string",
+      "enum": ["no_skill", "with_skill"]
+    },
+    "used_skill_path": {
+      "type": ["string", "null"]
+    },
+    "read_basic_only": {
+      "type": "boolean"
+    },
+    "read_full_json": {
+      "type": "boolean"
+    },
+    "patch_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
