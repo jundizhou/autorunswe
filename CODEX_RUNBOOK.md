@@ -1,13 +1,13 @@
 # Codex Bugfix Runbook
 
-这套模板只给 Codex 使用，目标是对 `swe_bench_pro_js_ts_basic_10.json` 里的每个 bug 进行两轮独立修复，并强制生成两份 patch。
+这套模板只给 Codex 使用，目标是对 `swe_bench_pro_js_ts_basic_10.json` 里的每个 bug 进行两轮独立修复。
 
 ## 目标
 
 对同一个 bug 执行两轮修复：
 
 1. `no_skill`
-不使用 `/Users/jundi/PycharmProjects/claw-skills`
+不使用 `claw-skills`
 
 2. `with_skill`
 新开一个全新 session，使用你指定的 skill
@@ -15,7 +15,8 @@
 最终产物：
 
 - `patches/no_skill/<instance_id>/fix.patch`
-- `patches/with_skill/<instance_id>/fix.patch`
+- `patches/with_skill/<instance_id>/result.json`
+- 如果第二轮产生 patch，还会额外落 `patches/with_skill/<instance_id>/fix.patch`
 
 仓库来源：
 
@@ -35,19 +36,22 @@
 如果当前目录存在 `swe_bench_pro_js_ts_full_10.json`，脚本直接拒绝运行。
 
 3. 第一轮禁止 `claw-skills`
-`no_skill` 轮不会把 `/Users/jundi/PycharmProjects/claw-skills` 暴露给 Codex，并且会扫描事件日志；一旦日志中出现该路径，整轮作废。
+`no_skill` 轮不会把 `CLAW_SKILLS_ROOT` 暴露给 Codex，并且会扫描事件日志；一旦日志中出现该路径，整轮作废。
 
 4. 第二轮必须显式使用 skill
-`with_skill` 轮固定使用 `/Users/jundi/PycharmProjects/claw-skills/skills/debug-orchestrator-fix/SKILL.md`。脚本会把 `claw-skills` 根目录作为可访问目录暴露给 Codex，并要求 Codex 在结构化结果里回填 `used_skill_path`；若不匹配，整轮作废。
+`with_skill` 轮固定使用 `SECOND_PASS_SKILL_PATH`。脚本会把 `CLAW_SKILLS_ROOT` 作为可访问目录暴露给 Codex，并要求 Codex 在结构化结果里回填 `used_skill_path`；若不匹配，整轮作废。
 
 5. 每轮必须是新 session
 脚本每次都调用新的 `codex exec`，不会复用上一次 session。
 
-6. 每轮都必须落盘 patch
-每轮必须先在独立运行目录里生成 `out/fix.patch`，随后脚本会校验其非空且可 `git apply --check`，最后复制到正式产物目录。
+6. 第一轮必须落盘 patch，第二轮 patch 可选
+`no_skill` 必须在独立运行目录里生成 `out/fix.patch`，随后脚本会校验其非空且可 `git apply --check`，最后复制到正式产物目录。
+`with_skill` 允许“流程跑完但没有 patch”；这种情况下只要求 `result.json` 落盘。
 
 7. 不允许只输出分析
-Codex 的最终输出被 JSON Schema 约束；脚本只接受 `status="patched"` 的结果。
+Codex 的最终输出被 JSON Schema 约束。
+`no_skill` 只接受 `status="patched"`。
+`with_skill` 接受 `status="patched"` 或 `status="failed"`，其中 `failed` 表示本轮完成但未产出 patch。
 
 ## 目录约定
 
@@ -63,10 +67,57 @@ Codex 的最终输出被 JSON Schema 约束；脚本只接受 `status="patched"`
 
 - `input/basic_bug.json`
 - `repo/`
-- `out/fix.patch`
+- `out/fix.patch`（可选；`with_skill` 可能没有）
 - `prompt.md`
 - `result.json`
 - `events.jsonl`
+
+## 默认路径与环境变量
+
+脚本里的本地路径全部采用“默认值 + 环境变量覆盖”的模式。
+
+默认推断规则：
+
+- `CLAW_SKILLS_ROOT`
+  脚本会优先在这些位置里找第一个存在的目录：
+  - `$HOME/PycharmProjects/claw-skills`
+  - `$HOME/PyCharmProjects/claw-skills`
+  - `$(dirname "$ROOT_DIR")/claw-skills`
+  - `$(dirname "$ROOT_DIR")/../PycharmProjects/claw-skills`
+  - `$(dirname "$ROOT_DIR")/../PyCharmProjects/claw-skills`
+
+- `SECOND_PASS_SKILL_PATH`
+  默认取：
+  - `$CLAW_SKILLS_ROOT/skills/debug-orchestrator-fix/SKILL.md`
+
+- `PATCH_CHECK_ROOT`
+  脚本会优先在这些位置里找：
+  - `$(dirname "$ROOT_DIR")/SWE-bench_Pro-os`
+  - `$HOME/PyCharmMiscProject/SWE-bench_Pro-os`
+
+- `PATCH_CHECK_PYTHON`
+  默认取：
+  - `$PATCH_CHECK_ROOT/.venv/bin/python`
+
+- `PATCH_CHECK_SCRIPT`
+  默认取：
+  - `$PATCH_CHECK_ROOT/helper_code/run_single_patch_check.py`
+
+- `SECOND_PASS_CODEX_ACP_COMMAND`
+  脚本会优先在这些位置里找：
+  - `$ROOT_DIR/.runtime/codex-acp/node_modules/@zed-industries/codex-acp-darwin-arm64/bin/codex-acp`
+  - `/tmp/codex-acp-local/node_modules/@zed-industries/codex-acp-darwin-arm64/bin/codex-acp`
+
+推荐覆盖方式：
+
+```bash
+export CLAW_SKILLS_ROOT="/abs/path/to/claw-skills"
+export SECOND_PASS_SKILL_PATH="$CLAW_SKILLS_ROOT/skills/debug-orchestrator-fix/SKILL.md"
+export PATCH_CHECK_ROOT="/abs/path/to/SWE-bench_Pro-os"
+export PATCH_CHECK_PYTHON="$PATCH_CHECK_ROOT/.venv/bin/python"
+export PATCH_CHECK_SCRIPT="$PATCH_CHECK_ROOT/helper_code/run_single_patch_check.py"
+export SECOND_PASS_CODEX_ACP_COMMAND="/abs/path/to/codex-acp"
+```
 
 ## 运行前准备
 
@@ -82,13 +133,17 @@ Codex 的最终输出被 JSON Schema 约束；脚本只接受 `status="patched"`
    `codex`
    `jq`
    `git`
-4. 第二轮 skill 已经固定写入脚本：
+5. 确保第二轮 skill 路径可解析：
+   `SECOND_PASS_SKILL_PATH`
+6. 如果第二轮 agent 是 `codex`，确保 `SECOND_PASS_CODEX_ACP_COMMAND` 指向可执行的 `codex-acp`
+
+最小推荐环境：
 
 ```bash
-/Users/jundi/PycharmProjects/claw-skills/skills/debug-orchestrator-fix/SKILL.md
+export CLAW_SKILLS_ROOT="/abs/path/to/claw-skills"
+export SECOND_PASS_SKILL_PATH="$CLAW_SKILLS_ROOT/skills/debug-orchestrator-fix/SKILL.md"
+export SECOND_PASS_CODEX_ACP_COMMAND="/abs/path/to/codex-acp"
 ```
-
-如需更换，可以覆写环境变量 `SECOND_PASS_SKILL_PATH`，但该路径必须仍在 `/Users/jundi/PycharmProjects/claw-skills` 下面。
 
 ## 运行方式
 
@@ -121,9 +176,13 @@ Codex 的最终输出被 JSON Schema 约束；脚本只接受 `status="patched"`
 ```bash
 export MODEL="gpt-5.4"
 export MAX_ATTEMPTS=2
-export BASIC_JSON="/Users/jundi/PyCharmMiscProject/autorun/swe_bench_pro_js_ts_basic_10.json"
-export CLAW_SKILLS_ROOT="/Users/jundi/PycharmProjects/claw-skills"
-export SECOND_PASS_SKILL_PATH="/Users/jundi/PycharmProjects/claw-skills/skills/debug-orchestrator-fix/SKILL.md"
+export BASIC_JSON="$PWD/swe_bench_pro_js_ts_basic_10.json"
+export CLAW_SKILLS_ROOT="/abs/path/to/claw-skills"
+export SECOND_PASS_SKILL_PATH="$CLAW_SKILLS_ROOT/skills/debug-orchestrator-fix/SKILL.md"
+export SECOND_PASS_CODEX_ACP_COMMAND="/abs/path/to/codex-acp"
+export PATCH_CHECK_ROOT="/abs/path/to/SWE-bench_Pro-os"
+export PATCH_CHECK_PYTHON="$PATCH_CHECK_ROOT/.venv/bin/python"
+export PATCH_CHECK_SCRIPT="$PATCH_CHECK_ROOT/helper_code/run_single_patch_check.py"
 ```
 
 ## 脚本保证的事
@@ -132,8 +191,8 @@ export SECOND_PASS_SKILL_PATH="/Users/jundi/PycharmProjects/claw-skills/skills/d
 2. 两轮修复使用全新 repo 工作副本，不复用前一轮工作区
 3. 第一轮显式禁止 `claw-skills`
 4. 第二轮显式要求 skill 路径匹配
-5. 每轮必须生成 patch 文件
-6. patch 在复制到正式目录前会做可应用性校验
+5. 第一轮 patch 强制校验，第二轮 patch 可选
+6. 第二轮至少会落 `result.json`
 7. 仓库只在首次运行时 clone 到 `repo_cache` 裸 mirror，后续只做本地派生与回退
 
 ## 不能保证的事

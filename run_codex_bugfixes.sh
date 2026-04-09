@@ -2,6 +2,37 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+WORKSPACE_PARENT_DIR="$(cd "$ROOT_DIR/.." && pwd -P)"
+
+pick_first_path_or_first() {
+  local first="${1:-}"
+  local candidate
+  for candidate in "$@"; do
+    [[ -n "$candidate" ]] || continue
+    if [[ -e "$candidate" ]]; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+  printf '%s\n' "$first"
+}
+
+DEFAULT_CLAW_SKILLS_ROOT="$(pick_first_path_or_first \
+  "$HOME/PycharmProjects/claw-skills" \
+  "$HOME/PycharmProjects/claw-skills" \
+  "$HOME/PyCharmProjects/claw-skills" \
+  "$WORKSPACE_PARENT_DIR/claw-skills" \
+  "$WORKSPACE_PARENT_DIR/../PycharmProjects/claw-skills" \
+  "$WORKSPACE_PARENT_DIR/../PyCharmProjects/claw-skills")"
+DEFAULT_SECOND_PASS_SKILL_PATH="$DEFAULT_CLAW_SKILLS_ROOT/skills/debug-orchestrator-fix/SKILL.md"
+DEFAULT_PATCH_CHECK_ROOT="$(pick_first_path_or_first \
+  "$WORKSPACE_PARENT_DIR/SWE-bench_Pro-os" \
+  "$HOME/PyCharmMiscProject/SWE-bench_Pro-os")"
+DEFAULT_CODEX_ACP_COMMAND="$(pick_first_path_or_first \
+  "$ROOT_DIR/.runtime/codex-acp/node_modules/@zed-industries/codex-acp-darwin-arm64/bin/codex-acp" \
+  "$ROOT_DIR/.runtime/codex-acp/node_modules/@zed-industries/codex-acp-darwin-arm64/bin/codex-acp" \
+  "/tmp/codex-acp-local/node_modules/@zed-industries/codex-acp-darwin-arm64/bin/codex-acp")"
+
 BASIC_JSON="${BASIC_JSON:-$ROOT_DIR/swe_bench_pro_js_ts_basic_10.json}"
 FORBIDDEN_FULL_JSON="${FORBIDDEN_FULL_JSON:-$ROOT_DIR/swe_bench_pro_js_ts_full_10.json}"
 SCHEMA_JSON="${SCHEMA_JSON:-$ROOT_DIR/codex_result_schema.json}"
@@ -9,20 +40,21 @@ CODEX_BIN="${CODEX_BIN:-codex}"
 MODEL="${MODEL:-gpt-5.4}"
 MAX_ATTEMPTS="${MAX_ATTEMPTS:-2}"
 REPO_CACHE_DIR="${REPO_CACHE_DIR:-$ROOT_DIR/repo_cache}"
-CLAW_SKILLS_ROOT="${CLAW_SKILLS_ROOT:-/Users/jundi/PycharmProjects/claw-skills}"
-SECOND_PASS_SKILL_PATH="${SECOND_PASS_SKILL_PATH:-/Users/jundi/PycharmProjects/claw-skills/skills/debug-orchestrator-fix/SKILL.md}"
+CLAW_SKILLS_ROOT="${CLAW_SKILLS_ROOT:-$DEFAULT_CLAW_SKILLS_ROOT}"
+SECOND_PASS_SKILL_PATH="${SECOND_PASS_SKILL_PATH:-$DEFAULT_SECOND_PASS_SKILL_PATH}"
 SECOND_PASS_SKILL_DIR="${SECOND_PASS_SKILL_DIR:-$(cd "$(dirname "$SECOND_PASS_SKILL_PATH")" && pwd -P)}"
 SECOND_PASS_SETUP_SCRIPT="${SECOND_PASS_SETUP_SCRIPT:-$SECOND_PASS_SKILL_DIR/scripts/setup.py}"
 SECOND_PASS_ORCHESTRATOR_SCRIPT="${SECOND_PASS_ORCHESTRATOR_SCRIPT:-$SECOND_PASS_SKILL_DIR/scripts/orchestrate_debug.py}"
 SECOND_PASS_AGENT_NAME="${SECOND_PASS_AGENT_NAME:-codex}"
-SECOND_PASS_CODEX_ACP_COMMAND="${SECOND_PASS_CODEX_ACP_COMMAND:-/tmp/codex-acp-local/node_modules/@zed-industries/codex-acp-darwin-arm64/bin/codex-acp}"
+SECOND_PASS_CODEX_ACP_COMMAND="${SECOND_PASS_CODEX_ACP_COMMAND:-$DEFAULT_CODEX_ACP_COMMAND}"
 SECOND_PASS_DATASET_NAME="${SECOND_PASS_DATASET_NAME:-SWE-bench_Pro}"
 SECOND_PASS_SETUP_TIMEOUT_SECONDS="${SECOND_PASS_SETUP_TIMEOUT_SECONDS:-900}"
 SECOND_PASS_ORCHESTRATOR_TIMEOUT_SECONDS="${SECOND_PASS_ORCHESTRATOR_TIMEOUT_SECONDS:-3600}"
 FIRST_ONLY_DEFAULT="${FIRST_ONLY_DEFAULT:-1}"
 RUN_PATCH_CHECK="${RUN_PATCH_CHECK:-1}"
-PATCH_CHECK_PYTHON="${PATCH_CHECK_PYTHON:-/Users/jundi/PyCharmMiscProject/SWE-bench_Pro-os/.venv/bin/python}"
-PATCH_CHECK_SCRIPT="${PATCH_CHECK_SCRIPT:-/Users/jundi/PyCharmMiscProject/SWE-bench_Pro-os/helper_code/run_single_patch_check.py}"
+PATCH_CHECK_ROOT="${PATCH_CHECK_ROOT:-$DEFAULT_PATCH_CHECK_ROOT}"
+PATCH_CHECK_PYTHON="${PATCH_CHECK_PYTHON:-$PATCH_CHECK_ROOT/.venv/bin/python}"
+PATCH_CHECK_SCRIPT="${PATCH_CHECK_SCRIPT:-$PATCH_CHECK_ROOT/helper_code/run_single_patch_check.py}"
 PATCH_CHECK_OUTPUT_ROOT="${PATCH_CHECK_OUTPUT_ROOT:-/tmp/swe-bench-pro-single-patch-eval}"
 PATCH_CHECK_REPORT_FILE="${PATCH_CHECK_REPORT_FILE:-$ROOT_DIR/logs/patch_check_results.md}"
 
