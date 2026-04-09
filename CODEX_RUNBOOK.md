@@ -95,6 +95,10 @@ Codex 的最终输出被 JSON Schema 约束。
   - `$(dirname "$ROOT_DIR")/SWE-bench_Pro-os`
   - `$HOME/PyCharmMiscProject/SWE-bench_Pro-os`
 
+  这里的 `SWE-bench_Pro-os` 指外部评测项目目录。
+  当前仓库不会复制 `run_single_patch_check.py` 或 `validate_single_patch.py` 进来，而是直接调用该项目里的脚本。
+  也就是说，patch 校验脚本应当放在 `SWE-bench_Pro-os/helper_code/` 下，而不是放到当前 `autorun` 仓库里。
+
 - `PATCH_CHECK_PYTHON`
   默认取：
   - `$PATCH_CHECK_ROOT/.venv/bin/python`
@@ -136,6 +140,15 @@ export SECOND_PASS_CODEX_ACP_COMMAND="/abs/path/to/codex-acp"
 5. 确保第二轮 skill 路径可解析：
    `SECOND_PASS_SKILL_PATH`
 6. 如果第二轮 agent 是 `codex`，确保 `SECOND_PASS_CODEX_ACP_COMMAND` 指向可执行的 `codex-acp`
+7. 如果开启 patch 校验，确保外部 `SWE-bench_Pro-os` 项目已就绪，并且下面两个文件存在于那个项目中：
+   - `$PATCH_CHECK_ROOT/.venv/bin/python`
+   - `$PATCH_CHECK_ROOT/helper_code/run_single_patch_check.py`
+
+特别说明：
+
+- `run_codex_bugfixes.sh` 不会把 patch check 脚本复制到当前仓库
+- 它只会通过 `PATCH_CHECK_ROOT` / `PATCH_CHECK_SCRIPT` 去调用 `SWE-bench_Pro-os` 项目里的脚本
+- 所以这部分依赖应该维护在 `SWE-bench_Pro-os` 项目里
 
 最小推荐环境：
 

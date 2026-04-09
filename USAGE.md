@@ -22,6 +22,12 @@
 - `/Users/jundi/PyCharmMiscProject/SWE-bench_Pro-os/helper_code/run_single_patch_check.py`
 - 本地 Docker 环境
 
+说明：
+
+- 这两个 patch 校验脚本属于外部 `SWE-bench_Pro-os` 项目
+- 当前 `autorun` 仓库不会把它们复制进来
+- 正确做法是把它们放在 `SWE-bench_Pro-os/helper_code/` 下，再由当前脚本通过环境变量去引用
+
 ## 1. 生成 `swe_bench_pro_js_ts_basic_10.json`
 
 当前仓库里没有现成的生成脚本，下面的命令是根据现有文件格式和脚本消费方式反推出的。
@@ -254,6 +260,12 @@ cd /Users/jundi/PyCharmMiscProject/autorun
 5. 用 `git apply --check` 验证 patch
 6. 如果开启 patch 检查，再调用单补丁评测脚本做基准验证
 
+注意：
+
+- 这里调用的单补丁评测脚本来自外部 `SWE-bench_Pro-os` 项目
+- 当前仓库不会复制这套脚本到本地
+- 所以 `PATCH_CHECK_ROOT` 应该指向 `SWE-bench_Pro-os` 项目目录
+
 ## 常用环境变量
 
 ```bash
@@ -274,6 +286,8 @@ export PATCH_CHECK_SCRIPT="/Users/jundi/PyCharmMiscProject/SWE-bench_Pro-os/help
 export PATCH_CHECK_OUTPUT_ROOT="/tmp/swe-bench-pro-single-patch-eval"
 export PATCH_CHECK_REPORT_FILE="/Users/jundi/PyCharmMiscProject/autorun/logs/patch_check_results.md"
 ```
+
+这些变量都应该指向外部 `SWE-bench_Pro-os` 项目，而不是当前仓库里的副本。
 
 如果你只想生成 patch、不跑基准 patch 校验：
 
